@@ -1,0 +1,116 @@
+- Build a video recommendation system for Youtube
+- Purpose: 
+	- A detailed transformation of biz to eng problem
+	- design user's view of the system
+	- show that you can communciate and unpack an open-ended problem
+	- ask clarifying questions
+	- key aspects of the problem     
+
+- Functional requirement
+	- Latency
+	- Scalability 
+	- Video quality based on devices
+	- quality of engagement
+	- defining addiction - not interesting for cases
+	- how many videos can be presented on one screen
+	- Data - 
+		- Title, playlist, subscription, comments
+- Total numbers of users: 1.3 B
+	- Total videos > 1 B
+	- Video views per month are 150 B
+	- 10% watched are from recommendations a total of 15 B videos
+	- on homepage user sees 100 video recommendation
+
+Additional data
+- User profile data
+- Viewers who watched this video 
+- channel information, metadata
+- number of recommendation per user
+- bandwidth 
+	- assume a need to generate a recommendation request every second for 10M users. 
+	- total size
+	- How many positive samples, negative smaples 
+	- how many features, 500 bytes to store 1 M we need 800 billion rows
+	- Total size 500 x 800 x 10^9 = 4 x 10^14 = .4 petabytes
+	- only keep last month of videos
+	- Scale: support 1.3 B users, > 1 b videos
+	- have distributed ML servers for training and inference, load balancers
+- Training
+	- User behaviors is generally unpredictable and videos can become viral during the day
+	- we want a train many times a day during the day to capture temporal changes 
+	- 100 videos per user, latency 200 ms
+- exploration v. exploitation
+	- Metrics P + Recall: True positive/all positives, recall: true positive/(true positives + false negatives)
+	- Training: high throughput with ability to retrain many times per day 
+	- flexibility to control exploration versus exploitation 
+- online metrics
+	- Click through rates
+	- session
+	- conversion rate
+	- like, subscribe, follow comments
+	- MRR
+	- NDCG - ranking metric 
+- Step 3: High Level Architecture
+	- Database: user watched history stores 
+	- Resampling data - down sampling negative samples
+	- Feature Pipeline 
+		- generate all required features fo training a model
+		- Spark (in memory computation engine), Elastic MapReduce, Google DataProc 
+	- ![[Pasted image 20220206134138.png]]
+	- Model Repo
+		- Storage to store all models, AWS s3 popular option
+	- Flow Application Server (production) -> Candidate Generation Service has 1000 candidates -> how to choose top 100 -> ranking service
+- Step 4: 
+	- There are batch and online prediction models 
+		- batch is periodical, processing accumulated data when you don't need system. 
+		- doordash does restaurant recommendation uses batch predictions
+			- within each restaurant item recommendation use online prediction
+		- define the flow and parts 
+			- candidate generation, ranking
+		- start with simple approaches 
+		- proceeed to more complicated approaches like deep learning discuss pros and cons 
+- Step 5:
+	- ML ops for modeling:
+		- Repeatability of Experiements: ML Flow, KubeFlow
+		- Parallelize hyper-parameter tuning: Google Cloud, Azure
+		- Model Versions: DVC, Sage Maker
+		- High Availability
+	- ML Ops is a bonus
+	- Serving the model A/B Testing
+	- Run Inference
+	- Monitor Performance
+	- Biases and misuses of your model 
+	- how often to retrain the model 
+	- Candidate Generation 
+		- Once a week on large sets
+		- Content-based filtering: 
+			- Similarities between items to recommend items 
+			- row is item, and column is feature 
+			- small recommendation system 
+			- No development of embedding
+			- hand generated featuresv       
+		- Collaborative filtering 
+			- Simiilarities between users and items simultaneous to provide recommendation
+			- embeddings are automatically learned
+		- Neural Net - read paper in slides. 
+
+		- Ranking Models:
+			- During inference the ranking model recives a list of video candidates by candidate generation
+				- Ranks the candidates. 10000 > 100 picks
+				- Sorts the video candidates based on that probability and returns the list to the upstream process. 
+				- view likelihood 
+			- Video, Text, Location, Normalization, Standardization, Time Related Features
+		- Simple Neural network model. 
+		- Nearest Neighbors - 
+			- Return top k items according to the similarity scores
+			- Large Scale retrieval
+			- exhaustive scoring can be expensive for ver large corpora
+			- local sensitive hashing [https://www.learndatasci.com/tutorials/building-recommendation-engine-locality-sensitive-hashing-lsh-python/] (https://www.learndatasci.com/tutorials/building-recommendation-engine-locality-sensitive-hashing-lsh-python/)
+			- query = user => search for item embeddings for that user. 
+			- Lots of users, lots of data can't rank and generate at the same time. 
+		- Objective function
+			- Clicks
+			- sessions, etc. 
+		- Positional bias in scoring (close to thumb videos)
+		- Solutions, position independent rankings, rank all candidates as if they are in the top position. 
+	- Freshness, Diversity
